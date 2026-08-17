@@ -40,10 +40,15 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 *.jks
+*.keystore
 !debug.keystore
 
 # Local configuration
 /local.properties
+
+# ===== 固定签名直接入库（锁死签名）=====
+!/android/key.properties
+!/android/app/authenticator.p12
 
 # Web related
 lib/generated_plugin_registrant.dart
