@@ -377,29 +377,4 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('退出登录'),
-        content: const Text('确定要退出登录吗？退出后云端同步将暂停。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await this.context.read<AppProvider>().logout();
-              if (mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('退出', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
 }
