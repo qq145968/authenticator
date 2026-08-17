@@ -11,6 +11,8 @@ class Account {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isDeleted;
+  final DateTime? deletedAt;
 
   Account({
     this.id,
@@ -25,6 +27,8 @@ class Account {
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.isDeleted = false,
+    this.deletedAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -41,6 +45,8 @@ class Account {
       'sort_order': sortOrder,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
+      'is_deleted': isDeleted ? 1 : 0,
+      'deleted_at': deletedAt?.millisecondsSinceEpoch,
     };
   }
 
@@ -58,6 +64,10 @@ class Account {
       sortOrder: map['sort_order'] as int? ?? 0,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      isDeleted: (map['is_deleted'] as int? ?? 0) == 1,
+      deletedAt: map['deleted_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['deleted_at'] as int)
+          : null,
     );
   }
 
@@ -74,6 +84,8 @@ class Account {
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isDeleted,
+    DateTime? deletedAt,
   }) {
     return Account(
       id: id ?? this.id,
@@ -88,6 +100,8 @@ class Account {
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 }
