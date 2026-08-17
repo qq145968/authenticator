@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../data/models/account.dart';
-import '../data/models/user.dart';
-import '../data/repositories/account_repository.dart';
-import '../core/utils/totp_utils.dart';
+import '../../data/models/account.dart';
+import '../../data/models/user.dart';
+import '../../data/repositories/account_repository.dart';
+import '../utils/totp_utils.dart';
 
 class AppProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
