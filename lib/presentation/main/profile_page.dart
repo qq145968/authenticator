@@ -143,7 +143,7 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 8),
               Text(
                 '开启云端同步 · 无限账户 · 端到端加密保护',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+                style: TextStyle(color: Colors.white.withOpacity( 0.8), fontSize: 13),
               ),
               const SizedBox(height: 16),
               InkWell(
@@ -151,7 +151,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity( 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -172,12 +172,12 @@ class _ProfilePageState extends State<ProfilePage> {
           Positioned(
             top: 0,
             right: 0,
-            child: Icon(Icons.star, color: AppColors.starYellow.withValues(alpha: 0.6), size: 32),
+            child: Icon(Icons.star, color: AppColors.starYellow.withOpacity( 0.6), size: 32),
           ),
           Positioned(
             top: 20,
             right: 24,
-            child: Icon(Icons.star, color: Colors.white.withValues(alpha: 0.3), size: 20),
+            child: Icon(Icons.star, color: Colors.white.withOpacity( 0.3), size: 20),
           ),
         ],
       ),
@@ -193,7 +193,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withOpacity( 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
