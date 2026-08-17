@@ -241,14 +241,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: _login,
-                      child: Text(
-                        '其他登录方式',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

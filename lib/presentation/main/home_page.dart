@@ -11,6 +11,8 @@ import '../scan/scan_page.dart';
 import '../manual_add/manual_add_page.dart';
 import 'profile_page.dart';
 import '../trash/trash_page.dart';
+import '../vip/vip_upgrade_page.dart';
+import '../widgets/trial_expiration_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,12 +24,23 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Timer? _timer;
   String _searchQuery = '';
+  static bool _trialDialogShown = false;
 
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<AppProvider>();
+      if (provider.isLoggedIn && mounted && !_trialDialogShown) {
+        _trialDialogShown = true;
+        showDialog(
+          context: context,
+          builder: (context) => const TrialExpirationDialog(remainingDays: 3),
+        );
+      }
     });
   }
 
@@ -57,6 +70,10 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const TrashPage()));
   }
 
+  void _navigateToVip() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const VipUpgradePage()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
@@ -66,6 +83,7 @@ class _HomePageState extends State<HomePage> {
       body: Column(
         children: [
           _buildHeader(context, provider, isDark),
+          if (provider.isLoggedIn) _buildDataLossWarning(context, provider),
           if (provider.isLoggedIn) _buildCategoryTabs(context, provider),
           Expanded(
             child: !provider.isLoggedIn
@@ -74,7 +92,71 @@ class _HomePageState extends State<HomePage> {
                     ? _buildEmptyState()
                     : _buildAccountList(provider),
           ),
+          if (provider.isLoggedIn && provider.accounts.isNotEmpty) _buildFooter(provider),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDataLossWarning(BuildContext context, AppProvider provider) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            children: [
+              Icon(Icons.cloud_off, color: AppColors.primary, size: 20),
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Text(
+                    '0',
+                    style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              '您的账户存在数据丢失的风险',
+              style: TextStyle(fontSize: 13, color: AppColors.primary),
+            ),
+          ),
+          GestureDetector(
+            onTap: _navigateToVip,
+            child: const Icon(Icons.arrow_forward_ios, color: AppColors.primary, size: 12),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {},
+            child: const Icon(Icons.close, color: AppColors.textHint, size: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(AppProvider provider) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        '共 ${provider.accounts.length} 个账户 · 轻点复制验证码',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, color: AppColors.textHint),
       ),
     );
   }
@@ -347,45 +429,52 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: accounts.length,
-      itemBuilder: (context, index) {
-        final account = accounts[index];
-        return Dismissible(
-          key: ValueKey('acc-${account.id}'),
-          direction: DismissDirection.endToStart,
-          dismissThresholds: const {DismissDirection.endToStart: 0.5},
-          confirmDismiss: (direction) async {
-            if (direction == DismissDirection.endToStart) {
-              return await _showDismissConfirmDialog(account);
-            }
-            return false;
-          },
-          onDismissed: (direction) {
-            context.read<AppProvider>().softDeleteAccount(account.id!);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('已将 ${account.issuer} 移至回收站'),
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                action: SnackBarAction(
-                  label: '撤销',
-                  onPressed: () => context.read<AppProvider>().restoreAccount(account.id!),
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: accounts.length,
+            itemBuilder: (context, index) {
+              final account = accounts[index];
+              return Dismissible(
+                key: ValueKey('acc-${account.id}'),
+                direction: DismissDirection.endToStart,
+                dismissThresholds: const {DismissDirection.endToStart: 0.5},
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.endToStart) {
+                    return await _showDismissConfirmDialog(account);
+                  }
+                  return false;
+                },
+                onDismissed: (direction) {
+                  context.read<AppProvider>().softDeleteAccount(account.id!);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('已将 ${account.issuer} 移至回收站'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      action: SnackBarAction(
+                        label: '撤销',
+                        onPressed: () => context.read<AppProvider>().restoreAccount(account.id!),
+                      ),
+                    ),
+                  );
+                },
+                background: _buildDismissBackground(),
+                child: _AccountCard(
+                  account: account,
+                  totpResult: provider.getTotp(account),
+                  onDelete: () => _showDeleteDialog(account),
+                  onCopy: (code) => _copyCode(code),
                 ),
-              ),
-            );
-          },
-          background: _buildDismissBackground(),
-          child: _AccountCard(
-            account: account,
-            totpResult: provider.getTotp(account),
-            onDelete: () => _showDeleteDialog(account),
-            onCopy: (code) => _copyCode(code),
+              );
+            },
           ),
-        );
-      },
+        ),
+        _buildTrialBanner(),
+      ],
     );
   }
 
@@ -406,6 +495,34 @@ class _HomePageState extends State<HomePage> {
           Text(
             '删除',
             style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrialBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF6B6B),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            '试用时间还有3天',
+            style: TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: _navigateToVip,
+            child: const Text(
+              '马上升级高级会员 >',
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -543,9 +660,10 @@ class _AccountCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(account.issuer, style: AppTextStyles.heading3),
-                    const SizedBox(height: 4),
-                    Text(account.label, style: AppTextStyles.caption),
+                    Text(
+                      '${account.issuer} · ${account.label}',
+                      style: AppTextStyles.heading3,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       TotpUtils.formatCode(code),

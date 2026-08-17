@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import 'home_page.dart';
 import 'keyboard_page.dart';
-import 'profile_page.dart';
 import '../scan/scan_page.dart';
 
 class MainPage extends StatefulWidget {
@@ -28,13 +27,6 @@ class MainPageState extends State<MainPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ScanPage()),
-    );
-  }
-
-  void _navigateToProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfilePage()),
     );
   }
 

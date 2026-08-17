@@ -4,6 +4,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/providers/app_provider.dart';
 import '../login/login_page.dart';
 import '../trash/trash_page.dart';
+import '../profile/personal_info_page.dart';
+import '../vip/vip_upgrade_page.dart';
+import '../feedback/faq_page.dart';
+import '../about/about_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -26,15 +30,20 @@ class _ProfilePageState extends State<ProfilePage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature 功能即将上线'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
+  void _navigateToVip() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const VipUpgradePage()));
+  }
+
+  void _navigateToFaq() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqPage()));
+  }
+
+  void _navigateToAbout() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutPage()));
+  }
+
+  void _navigateToPersonalInfo() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const PersonalInfoPage()));
   }
 
   void _showLogoutDialog() {
@@ -86,23 +95,6 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildUserCard(isLoggedIn, user),
             const SizedBox(height: 16),
             _buildMenuList(context, provider),
-            const SizedBox(height: 16),
-            if (isLoggedIn)
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: _showLogoutDialog,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('退出登录'),
-                ),
-              ),
             const SizedBox(height: 32),
           ],
         ),
@@ -148,7 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 16),
               InkWell(
-                onTap: () => _showComingSoon('VIP'),
+                onTap: _navigateToVip,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
@@ -186,7 +178,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildUserCard(bool isLoggedIn, dynamic user) {
-    return Container(
+    return GestureDetector(
+      onTap: isLoggedIn ? _navigateToPersonalInfo : null,
+      child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -252,8 +246,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
               child: const Text('前往登录', style: TextStyle(fontSize: 13)),
-            ),
+            )
+          else
+            const Icon(Icons.chevron_right, color: AppColors.textHint),
         ],
+      ),
       ),
     );
   }
@@ -318,7 +315,7 @@ class _ProfilePageState extends State<ProfilePage> {
             iconColor: iconColor,
             title: '常见问题',
             textColor: textColor,
-            onTap: () => _showComingSoon('常见问题'),
+            onTap: _navigateToFaq,
           ),
           const Divider(indent: 16),
           _buildMenuItem(
@@ -326,7 +323,7 @@ class _ProfilePageState extends State<ProfilePage> {
             iconColor: iconColor,
             title: '问题反馈',
             textColor: textColor,
-            onTap: () => _showComingSoon('问题反馈'),
+            onTap: _navigateToFaq,
           ),
           const Divider(indent: 16),
           _buildMenuItem(
@@ -334,7 +331,7 @@ class _ProfilePageState extends State<ProfilePage> {
             iconColor: iconColor,
             title: '开具发票',
             textColor: textColor,
-            onTap: () => _showComingSoon('开具发票'),
+            onTap: _navigateToFaq,
           ),
           const Divider(indent: 16),
           _buildMenuItem(
@@ -342,7 +339,7 @@ class _ProfilePageState extends State<ProfilePage> {
             iconColor: iconColor,
             title: '关于我们',
             textColor: textColor,
-            onTap: () => _showAboutDialog(),
+            onTap: _navigateToAbout,
           ),
         ],
       ),
@@ -380,30 +377,26 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showAboutDialog() {
+  void _showLogoutDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('关于我们'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('身份验证器 Authenticator'),
-            const SizedBox(height: 8),
-            const Text('版本: 1.0.0'),
-            const SizedBox(height: 8),
-            const Text(
-              '基于TOTP标准的开源身份验证器应用，支持本地离线生成动态验证码。',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
+        title: const Text('退出登录'),
+        content: const Text('确定要退出登录吗？退出后云端同步将暂停。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('确定'),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await this.context.read<AppProvider>().logout();
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('退出', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
