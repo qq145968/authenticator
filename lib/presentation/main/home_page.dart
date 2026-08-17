@@ -10,6 +10,7 @@ import '../login/login_page.dart';
 import '../scan/scan_page.dart';
 import '../manual_add/manual_add_page.dart';
 import 'profile_page.dart';
+import '../trash/trash_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -52,6 +53,10 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
   }
 
+  void _navigateToTrash() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const TrashPage()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
@@ -76,8 +81,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHeader(BuildContext context, AppProvider provider, bool isDark) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.primaryDark, AppColors.primary],
@@ -111,24 +116,60 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: _navigateToProfile,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        shape: BoxShape.circle,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: _navigateToTrash,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Icon(Icons.delete_outline, color: Colors.white, size: 22),
+                              if (provider.hasDeletedAccounts)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: const Icon(Icons.person_outline, color: Colors.white, size: 22),
-                    ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _navigateToProfile,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person_outline, color: Colors.white, size: 22),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity( 0.15),
+                  color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextField(
@@ -136,8 +177,8 @@ class _HomePageState extends State<HomePage> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: '搜索账户...',
-                    hintStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.search, color: Colors.white54, size: 20),
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 20),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
@@ -169,9 +210,7 @@ class _HomePageState extends State<HomePage> {
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primaryLighter
-                            : Colors.transparent,
+                        color: isSelected ? AppColors.primaryLighter : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected ? AppColors.primary : AppColors.border,
@@ -197,7 +236,7 @@ class _HomePageState extends State<HomePage> {
             child: Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
@@ -226,10 +265,7 @@ class _HomePageState extends State<HomePage> {
               child: const Icon(Icons.person_outline, color: AppColors.primary, size: 48),
             ),
             const SizedBox(height: 24),
-            const Text(
-              '登录后可添加或查看你的验证码',
-              style: AppTextStyles.body,
-            ),
+            const Text('登录后可添加或查看你的验证码', style: AppTextStyles.body),
             const SizedBox(height: 24),
             SizedBox(
               width: 200,
@@ -316,13 +352,86 @@ class _HomePageState extends State<HomePage> {
       itemCount: accounts.length,
       itemBuilder: (context, index) {
         final account = accounts[index];
-        return _AccountCard(
-          account: account,
-          totpResult: provider.getTotp(account),
-          onDelete: () => _showDeleteDialog(account),
-          onCopy: (code) => _copyCode(code),
+        return Dismissible(
+          key: ValueKey('acc-${account.id}'),
+          direction: DismissDirection.endToStart,
+          dismissThresholds: const {DismissDirection.endToStart: 0.5},
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.endToStart) {
+              return await _showDismissConfirmDialog(account);
+            }
+            return false;
+          },
+          onDismissed: (direction) {
+            context.read<AppProvider>().softDeleteAccount(account.id!);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('已将 ${account.issuer} 移至回收站'),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                action: SnackBarAction(
+                  label: '撤销',
+                  onPressed: () => context.read<AppProvider>().restoreAccount(account.id!),
+                ),
+              ),
+            );
+          },
+          background: _buildDismissBackground(),
+          child: _AccountCard(
+            account: account,
+            totpResult: provider.getTotp(account),
+            onDelete: () => _showDeleteDialog(account),
+            onCopy: (code) => _copyCode(code),
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildDismissBackground() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.delete_outline, color: Colors.white, size: 26),
+          SizedBox(height: 4),
+          Text(
+            '删除',
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showDismissConfirmDialog(Account account) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('删除账户'),
+        content: Text(
+          '确定要删除 ${account.issuer} 的验证码账户吗？\n\n删除后将移入回收站，您可以在回收站中恢复或永久删除。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -344,7 +453,9 @@ class _HomePageState extends State<HomePage> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('删除账户'),
-        content: Text('确定要删除 ${account.issuer} 的验证码账户吗？'),
+        content: Text(
+          '确定要删除 ${account.issuer} 的验证码账户吗？\n\n删除后将移入回收站，您可以在回收站中恢复或永久删除。',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -352,7 +463,7 @@ class _HomePageState extends State<HomePage> {
           ),
           TextButton(
             onPressed: () {
-              context.read<AppProvider>().deleteAccount(account.id!);
+              context.read<AppProvider>().softDeleteAccount(account.id!);
               Navigator.pop(context);
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),
@@ -432,19 +543,13 @@ class _AccountCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      account.issuer,
-                      style: AppTextStyles.heading3,
-                    ),
+                    Text(account.issuer, style: AppTextStyles.heading3),
                     const SizedBox(height: 4),
-                    Text(
-                      account.label,
-                      style: AppTextStyles.caption,
-                    ),
+                    Text(account.label, style: AppTextStyles.caption),
                     const SizedBox(height: 8),
                     Text(
                       TotpUtils.formatCode(code),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 4,
