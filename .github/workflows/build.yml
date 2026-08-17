@@ -47,6 +47,26 @@ jobs:
           ls -la android/app/authenticator.p12 android/key.properties
           echo "✓ Built-in keystore and key.properties found (signature locked)"
 
+      - name: Fix keystore alias (repackage with openssl to ensure alias='authenticator')
+        run: |
+          cd android/app
+          echo "=== BEFORE: keystore aliases ==="
+          keytool -list -keystore authenticator.p12 -storepass authenticator_2024_fixed -storetype PKCS12 2>&1 || true
+          echo "=== Repackaging p12 with explicit alias 'authenticator' ==="
+          openssl pkcs12 -in authenticator.p12 -nocerts -nodes -passin pass:authenticator_2024_fixed -out key.pem
+          openssl pkcs12 -in authenticator.p12 -nokeys -passin pass:authenticator_2024_fixed -out cert.pem
+          openssl pkcs12 -export \
+            -in cert.pem \
+            -inkey key.pem \
+            -out authenticator_fixed.p12 \
+            -name authenticator \
+            -passout pass:authenticator_2024_fixed
+          mv authenticator_fixed.p12 authenticator.p12
+          rm -f key.pem cert.pem
+          echo "=== AFTER: keystore aliases ==="
+          keytool -list -keystore authenticator.p12 -storepass authenticator_2024_fixed -storetype PKCS12
+          echo "✓ Keystore alias fixed to 'authenticator'"
+
       - name: Build APK
         run: flutter build apk --release --split-per-abi
 
