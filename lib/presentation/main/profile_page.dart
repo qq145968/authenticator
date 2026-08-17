@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/app_provider.dart';
 import '../login/login_page.dart';
+import '../trash/trash_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -288,8 +289,28 @@ class _ProfilePageState extends State<ProfilePage> {
             iconColor: iconColor,
             title: '回收站',
             textColor: textColor,
-            subtitle: '查看已删除的验证码账户',
-            onTap: () => _showComingSoon('回收站'),
+            subtitle: provider.hasDeletedAccounts
+                ? '${provider.deletedAccounts.length} 个已删除账户'
+                : '查看已删除的验证码账户',
+            trailing: provider.hasDeletedAccounts
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${provider.deletedAccounts.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  )
+                : null,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TrashPage()),
+              );
+            },
           ),
           const Divider(indent: 16),
           _buildMenuItem(
