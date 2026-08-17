@@ -11,15 +11,18 @@ class AppProvider extends ChangeNotifier {
   late final AccountRepository _accountRepo;
 
   bool _isOnboardingComplete = false;
+  bool _privacyAccepted = false;
   bool _isLoggedIn = false;
   UserInfo? _user;
   bool _isDarkMode = false;
   List<Account> _accounts = [];
+  List<Account> _deletedAccounts = [];
   String _selectedCategory = '全部';
 
   AppProvider(this._prefs) {
     _accountRepo = AccountRepository(_prefs);
     _isOnboardingComplete = _prefs.getBool('onboarding_complete') ?? false;
+    _privacyAccepted = _prefs.getBool('privacy_accepted') ?? false;
     _isLoggedIn = _prefs.getBool('logged_in') ?? false;
     _isDarkMode = _prefs.getBool('dark_mode') ?? false;
     _loadUser();
@@ -27,11 +30,14 @@ class AppProvider extends ChangeNotifier {
   }
 
   bool get isOnboardingComplete => _isOnboardingComplete;
+  bool get privacyAccepted => _privacyAccepted;
   bool get isLoggedIn => _isLoggedIn;
   UserInfo? get user => _user;
   bool get isDarkMode => _isDarkMode;
   List<Account> get accounts => _accounts;
+  List<Account> get deletedAccounts => _deletedAccounts;
   String get selectedCategory => _selectedCategory;
+  bool get hasDeletedAccounts => _deletedAccounts.isNotEmpty;
 
   List<Account> get filteredAccounts {
     if (_selectedCategory == '全部') return _accounts;
@@ -61,6 +67,13 @@ class AppProvider extends ChangeNotifier {
 
   void _loadAccounts() {
     _accounts = _accountRepo.getAllAccounts();
+    _deletedAccounts = _accountRepo.getDeletedAccounts();
+    notifyListeners();
+  }
+
+  Future<void> acceptPrivacy() async {
+    _privacyAccepted = true;
+    await _prefs.setBool('privacy_accepted', true);
     notifyListeners();
   }
 
@@ -106,10 +119,28 @@ class AppProvider extends ChangeNotifier {
     _loadAccounts();
   }
 
-  Future<void> deleteAccount(int id) async {
-    await _accountRepo.deleteAccount(id);
+  Future<void> softDeleteAccount(int id) async {
+    await _accountRepo.softDeleteAccount(id);
     _loadAccounts();
   }
+
+  Future<void> restoreAccount(int id) async {
+    await _accountRepo.restoreAccount(id);
+    _loadAccounts();
+  }
+
+  Future<void> permanentDeleteAccount(int id) async {
+    await _accountRepo.permanentDeleteAccount(id);
+    _loadAccounts();
+  }
+
+  Future<void> clearTrash() async {
+    await _accountRepo.clearTrash();
+    _loadAccounts();
+  }
+
+  @Deprecated('Use softDeleteAccount instead')
+  Future<void> deleteAccount(int id) => softDeleteAccount(id);
 
   Future<void> updateAccount(Account account) async {
     await _accountRepo.updateAccount(account);
