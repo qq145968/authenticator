@@ -204,7 +204,7 @@ class _SecurityIllustration extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: Colors.black.withOpacity( 0.15),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -327,7 +327,7 @@ class _SecurityIllustration extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.3),
+            color: color.withOpacity( 0.3),
             blurRadius: 8,
             spreadRadius: 2,
           ),
@@ -360,7 +360,7 @@ class _SyncIllustration extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
+                    color: AppColors.primary.withOpacity( 0.2),
                     blurRadius: 12,
                     spreadRadius: 2,
                   ),
@@ -536,7 +536,7 @@ class _ScanIllustration extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.2),
+                      color: AppColors.primary.withOpacity( 0.2),
                       blurRadius: 12,
                     ),
                   ],
