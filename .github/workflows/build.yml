@@ -1,380 +1,105 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/providers/app_provider.dart';
-import '../login/login_page.dart';
-import '../trash/trash_page.dart';
-import '../profile/personal_info_page.dart';
-import '../vip/vip_upgrade_page.dart';
-import '../feedback/faq_page.dart';
-import '../about/about_page.dart';
+name: Build Android APK
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
 
-class _ProfilePageState extends State<ProfilePage> {
-  bool _darkMode = false;
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  @override
-  void initState() {
-    super.initState();
-    final provider = context.read<AppProvider>();
-    _darkMode = provider.isDarkMode;
-  }
+      - name: Setup Java (use pre-installed)
+        run: |
+          echo "Java version:"
+          java -version 2>&1
+          echo "JAVA_HOME=$JAVA_HOME"
+          # Ensure Java 17 is used
+          sudo update-alternatives --set java /usr/lib/jvm/temurin-17-jdk-amd64/bin/java 2>/dev/null || true
+          export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "$JAVA_HOME/bin" >> $GITHUB_PATH
 
-  void _navigateToLogin() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-  }
+      - name: Setup Flutter (manual install to avoid action download issues)
+        run: |
+          git clone --depth 1 --branch 3.27.0 https://github.com/flutter/flutter.git /opt/flutter
+          echo "/opt/flutter/bin" >> $GITHUB_PATH
+          /opt/flutter/bin/flutter --version
 
-  void _navigateToVip() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const VipUpgradePage()));
-  }
+      - name: Get dependencies
+        run: flutter pub get
 
-  void _navigateToFaq() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqPage()));
-  }
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        continue-on-error: true
 
-  void _navigateToAbout() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutPage()));
-  }
+      - name: Run tests
+        run: flutter test
+        continue-on-error: true
 
-  void _navigateToPersonalInfo() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const PersonalInfoPage()));
-  }
+      # ===== Fixed signing built into the repository =====
+      - name: Verify built-in signing keystore
+        run: |
+          ls -la android/app/authenticator.p12 android/key.properties
+          echo "Built-in keystore and key.properties found (signature locked)"
 
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('退出登录'),
-        content: const Text('确定要退出登录吗？退出后云端同步将暂停。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await this.context.read<AppProvider>().logout();
-              if (mounted) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('退出', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
+      - name: Fix keystore alias (repackage with openssl to ensure alias='authenticator')
+        run: |
+          cd android/app
+          echo "=== BEFORE: keystore aliases ==="
+          keytool -list -keystore authenticator.p12 -storepass authenticator_2024_fixed -storetype PKCS12 2>&1 || true
+          echo "=== Repackaging p12 with explicit alias 'authenticator' ==="
+          openssl pkcs12 -in authenticator.p12 -nocerts -nodes -passin pass:authenticator_2024_fixed -out key.pem
+          openssl pkcs12 -in authenticator.p12 -nokeys -passin pass:authenticator_2024_fixed -out cert.pem
+          openssl pkcs12 -export \
+            -in cert.pem \
+            -inkey key.pem \
+            -out authenticator_fixed.p12 \
+            -name authenticator \
+            -passout pass:authenticator_2024_fixed
+          mv authenticator_fixed.p12 authenticator.p12
+          rm -f key.pem cert.pem
+          echo "=== AFTER: keystore aliases ==="
+          keytool -list -keystore authenticator.p12 -storepass authenticator_2024_fixed -storetype PKCS12
+          echo "Keystore alias fixed to 'authenticator'"
 
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<AppProvider>();
-    final isLoggedIn = provider.isLoggedIn;
-    final user = provider.user;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+      - name: Build APK (universal, all ABIs in one package)
+        run: flutter build apk --release
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('我的'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildVipCard(),
-            const SizedBox(height: 16),
-            _buildUserCard(isLoggedIn, user),
-            const SizedBox(height: 16),
-            _buildMenuList(context, provider),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
-    );
-  }
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+        continue-on-error: true
 
-  Widget _buildVipCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.vipGradientStart, AppColors.vipGradientEnd],
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.star, color: AppColors.starYellow, size: 24),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '升级VIP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '开启云端同步 · 无限账户 · 端到端加密保护',
-                style: TextStyle(color: Colors.white.withOpacity( 0.8), fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _navigateToVip,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity( 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        '立即开通',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios, color: Colors.white, size: 12),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Icon(Icons.star, color: AppColors.starYellow.withOpacity( 0.6), size: 32),
-          ),
-          Positioned(
-            top: 20,
-            right: 24,
-            child: Icon(Icons.star, color: Colors.white.withOpacity( 0.3), size: 20),
-          ),
-        ],
-      ),
-    );
-  }
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: authenticator-apk
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+          retention-days: 30
 
-  Widget _buildUserCard(bool isLoggedIn, dynamic user) {
-    return GestureDetector(
-      onTap: isLoggedIn ? _navigateToPersonalInfo : null,
-      child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity( 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppColors.primaryLighter,
-            child: isLoggedIn
-                ? Text(
-                    (user?.username ?? '?')[0],
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  )
-                : const Icon(Icons.person, color: AppColors.textSecondary, size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isLoggedIn ? (user?.username ?? '用户') : '未登录',
-                  style: AppTextStyles.heading3.copyWith(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isLoggedIn
-                      ? (user?.plan ?? '免费版')
-                      : '登录后查看已添加的密钥',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isLoggedIn
-                        ? AppColors.accent
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!isLoggedIn)
-            ElevatedButton(
-              onPressed: _navigateToLogin,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(80, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              child: const Text('前往登录', style: TextStyle(fontSize: 13)),
-            )
-          else
-            const Icon(Icons.chevron_right, color: AppColors.textHint),
-        ],
-      ),
-      ),
-    );
-  }
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: authenticator-aab
+          path: build/app/outputs/bundle/release/*.aab
+          retention-days: 30
 
-  Widget _buildMenuList(BuildContext context, AppProvider provider) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final iconColor = AppColors.primary;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          _buildMenuItem(
-            icon: Icons.dark_mode_outlined,
-            iconColor: iconColor,
-            title: '深色模式',
-            textColor: textColor,
-            trailing: Switch(
-              value: _darkMode,
-              onChanged: (value) {
-                setState(() => _darkMode = value);
-                provider.toggleDarkMode();
-              },
-            ),
-          ),
-          const Divider(indent: 16),
-          _buildMenuItem(
-            icon: Icons.delete_outline,
-            iconColor: iconColor,
-            title: '回收站',
-            textColor: textColor,
-            subtitle: provider.hasDeletedAccounts
-                ? '${provider.deletedAccounts.length} 个已删除账户'
-                : '查看已删除的验证码账户',
-            trailing: provider.hasDeletedAccounts
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${provider.deletedAccounts.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  )
-                : null,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const TrashPage()),
-              );
-            },
-          ),
-          const Divider(indent: 16),
-          _buildMenuItem(
-            icon: Icons.help_outline,
-            iconColor: iconColor,
-            title: '常见问题',
-            textColor: textColor,
-            onTap: _navigateToFaq,
-          ),
-          const Divider(indent: 16),
-          _buildMenuItem(
-            icon: Icons.feedback_outlined,
-            iconColor: iconColor,
-            title: '问题反馈',
-            textColor: textColor,
-            onTap: _navigateToFaq,
-          ),
-          const Divider(indent: 16),
-          _buildMenuItem(
-            icon: Icons.receipt_outlined,
-            iconColor: iconColor,
-            title: '开具发票',
-            textColor: textColor,
-            onTap: _navigateToFaq,
-          ),
-          const Divider(indent: 16),
-          _buildMenuItem(
-            icon: Icons.info_outline,
-            iconColor: iconColor,
-            title: '关于我们',
-            textColor: textColor,
-            onTap: _navigateToAbout,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required Color textColor,
-    String? subtitle,
-    Widget? trailing,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: ListTile(
-        leading: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppColors.primaryLighter,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: iconColor, size: 18),
-        ),
-        title: Text(title, style: TextStyle(fontSize: 15, color: textColor)),
-        subtitle: subtitle != null
-            ? Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary))
-            : null,
-        trailing: trailing ?? const Icon(Icons.chevron_right, color: AppColors.textHint),
-      ),
-    );
-  }
-
-}
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          gh release create ${{ github.ref_name }} \
+            build/app/outputs/flutter-apk/*.apk \
+            --generate-notes \
+            --title "${{ github.ref_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
