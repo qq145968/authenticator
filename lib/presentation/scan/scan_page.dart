@@ -276,7 +276,7 @@ class _ScanPageState extends State<ScanPage> {
       children: [
         ColorFiltered(
           colorFilter: ColorFilter.mode(
-            Colors.black.withValues(alpha: 0.5),
+            Colors.black.withOpacity( 0.5),
             BlendMode.srcOut,
           ),
           child: Stack(
@@ -324,7 +324,7 @@ class _ScanPageState extends State<ScanPage> {
             child: Text(
               '将二维码放入框内',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
+                color: Colors.white.withOpacity( 0.8),
                 fontSize: 14,
               ),
             ),
