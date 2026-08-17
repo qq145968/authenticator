@@ -4,6 +4,7 @@ import 'presentation/login/login_page.dart';
 import 'presentation/main/main_page.dart';
 import 'presentation/scan/scan_page.dart';
 import 'presentation/manual_add/manual_add_page.dart';
+import 'presentation/trash/trash_page.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -18,6 +19,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ScanPage());
       case '/manual_add':
         return MaterialPageRoute(builder: (_) => const ManualAddPage());
+      case '/trash':
+        return MaterialPageRoute(builder: (_) => const TrashPage());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
