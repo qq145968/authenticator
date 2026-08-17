@@ -67,8 +67,8 @@ jobs:
           keytool -list -keystore authenticator.p12 -storepass authenticator_2024_fixed -storetype PKCS12
           echo "✓ Keystore alias fixed to 'authenticator'"
 
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi
+      - name: Build APK (universal, all ABIs in one package)
+        run: flutter build apk --release
 
       - name: Build App Bundle
         run: flutter build appbundle --release
